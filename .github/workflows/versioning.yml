@@ -1,0 +1,89 @@
+name: 🚀 Автоматическое версионирование и тегирование
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - '**.js'
+      - '**.html'
+      - '**.css'
+      - '!version.json'
+      - '!package.json'
+
+jobs:
+  update-version-and-tag:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    
+    steps:
+    # Шаг 1: Получаем код
+    - name: ⬇️ Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    # Шаг 2: Настраиваем Node.js
+    - name: ⚙️ Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    # Шаг 3: Получаем текущую версию
+    - name: 📋 Get current version
+      id: current_version
+      run: |
+        CURRENT_VERSION=$(node -e "console.log(require('./version.json').version)")
+        echo "Текущая версия: $CURRENT_VERSION"
+        echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+    # Шаг 4: Обновляем версию (patch)
+    - name: 🔄 Update version
+      run: |
+        npm run version:patch
+        NEW_VERSION=$(node -e "console.log(require('./version.json').version)")
+        echo "Новая версия: $NEW_VERSION"
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+    # Шаг 5: Коммитим обновленную версию
+    - name: 💾 Commit version update
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        git add version.json index.html package.json
+        git commit -m "chore: auto-update version to v$NEW_VERSION [skip ci]"
+        
+        echo "✅ Версия обновлена до v$NEW_VERSION"
+
+    # Шаг 6: Создаем тег
+    - name: 🏷️ Create git tag
+      run: |
+        git tag -a "v$NEW_VERSION" -m "Release version v$NEW_VERSION"
+        echo "✅ Тег v$NEW_VERSION создан"
+
+    # Шаг 7: Пушим изменения и тег
+    - name: 📤 Push changes and tag
+      run: |
+        git push origin master
+        git push origin "v$NEW_VERSION"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Шаг 8: Создаем релиз
+    - name: 🎉 Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ env.NEW_VERSION }}
+        name: Release v${{ env.NEW_VERSION }}
+        body: |
+          Автоматический релиз версии v${{ env.NEW_VERSION }}
+          
+          ### Изменения:
+          - Обновление версии при мерже в master
+          - Автоматическое тегирование
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
