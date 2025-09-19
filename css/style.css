@@ -303,3 +303,73 @@ button:disabled:hover {
 .cooldown-pulse {
     animation: pulse 1s infinite;
 }
+
+.quick-filter {
+    flex: auto;
+    padding: 10px 0;
+}
+
+.period-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.custom-period {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(52, 152, 219, 0.2);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.custom-period input {
+    padding: 8px;
+    border: 1px solid #3a506b;
+    border-radius: 4px;
+    background: #2c3e50;
+    color: white;
+}
+
+.quick-periods {
+    display: flex;
+    gap: 10px;
+}
+
+.quick-period {
+    padding: 8px 12px;
+    background: #34495e;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.quick-period:hover {
+    background: #2c3e50;
+}
+
+.period-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+    background: rgba(46, 204, 113, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+    border-left: 4px solid #2ecc71;
+}
+
+.period-stat-card {
+    text-align: center;
+    padding: 15px;
+}
+
+.period-stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2ecc71;
+    margin-top: 5px;
+}

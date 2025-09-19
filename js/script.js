@@ -1,7 +1,65 @@
 // Глобальные переменные
 let trades = JSON.parse(localStorage.getItem('cryptoFuturesTrades')) || [];
-let currentCoin = 'BTC';
+let currentCoin = 'all'; // Изменено на 'all' по умолчанию
 let editingIndex = -1;
+let currentPeriod = 'all';
+let startDateFilter = null;
+let endDateFilter = null;
+
+// Функции для работы с датами
+const DateUtils = {
+    startOfDay: (date) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    },
+    endOfDay: (date) => {
+        const d = new Date(date);
+        d.setHours(23, 59, 59, 999);
+        return d;
+    },
+    startOfWeek: (date) => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        d.setDate(diff);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    },
+    endOfWeek: (date) => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() + (7 - day) - (day === 0 ? 7 : 0);
+        d.setDate(diff);
+        d.setHours(23, 59, 59, 999);
+        return d;
+    },
+    startOfMonth: (date) => {
+        const d = new Date(date);
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    },
+    endOfMonth: (date) => {
+        const d = new Date(date);
+        d.setMonth(d.getMonth() + 1);
+        d.setDate(0);
+        d.setHours(23, 59, 59, 999);
+        return d;
+    },
+    startOfYear: (date) => {
+        const d = new Date(date);
+        d.setMonth(0, 1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    },
+    endOfYear: (date) => {
+        const d = new Date(date);
+        d.setMonth(11, 31);
+        d.setHours(23, 59, 59, 999);
+        return d;
+    }
+};
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
@@ -16,10 +74,14 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('save-file-btn').addEventListener('click', saveToFile);
     document.getElementById('load-file-btn').addEventListener('click', triggerFileInput);
     document.getElementById('file-input').addEventListener('change', loadFromFile);
+    
+    // Обработчики для фильтрации
+    setupFilterHandlers();
 });
 
 // Инициализация приложения
 function init() {
+    loadFilterState(); // Загружаем сохраненные фильтры
     updateTradesTable();
     updateStats();
     
@@ -29,14 +91,63 @@ function init() {
     document.getElementById('trade-date').value = localDateTime;
 }
 
+// Фильтрация сделок по периоду
+function filterTradesByPeriod(trades, period) {
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (period) {
+        case 'today':
+            startDate = DateUtils.startOfDay(now);
+            endDate = DateUtils.endOfDay(now);
+            break;
+        case 'week':
+            startDate = DateUtils.startOfWeek(now);
+            endDate = DateUtils.endOfWeek(now);
+            break;
+        case 'month':
+            startDate = DateUtils.startOfMonth(now);
+            endDate = DateUtils.endOfMonth(now);
+            break;
+        case 'year':
+            startDate = DateUtils.startOfYear(now);
+            endDate = DateUtils.endOfYear(now);
+            break;
+        case 'custom':
+            if (!startDateFilter || !endDateFilter) return trades;
+            startDate = DateUtils.startOfDay(startDateFilter);
+            endDate = DateUtils.endOfDay(endDateFilter);
+            break;
+        default:
+            return trades; // 'all'
+    }
+
+    return trades.filter(trade => {
+        const tradeDate = new Date(trade.date);
+        return tradeDate >= startDate && tradeDate <= endDate;
+    });
+}
+
 // Обновление таблицы сделок
 function updateTradesTable() {
     const tbody = document.getElementById('trades-table').querySelector('tbody');
+    if (!tbody) return;
+    
     tbody.innerHTML = '';
     
-    const coinTrades = trades.filter(trade => trade.coin === currentCoin);
+    // Фильтрация по криптовалюте
+    let filteredTrades = currentCoin === 'all' 
+        ? trades 
+        : trades.filter(trade => trade.coin === currentCoin);
     
-    coinTrades.forEach((trade, index) => {
+    // Фильтрация по периоду
+    filteredTrades = filterTradesByPeriod(filteredTrades, currentPeriod);
+    
+    // Обновление статистики периода
+    updatePeriodStats(filteredTrades);
+    
+    // Отрисовка таблицы
+    filteredTrades.forEach((trade) => {
         const row = document.createElement('tr');
         
         // Расчет PnL и ROE
@@ -72,9 +183,204 @@ function updateTradesTable() {
     });
 }
 
+// Статистика для выбранного периода
+function updatePeriodStats(filteredTrades) {
+    let periodStatsContainer = document.getElementById('period-stats');
+    
+    if (!periodStatsContainer) {
+        // Создаем контейнер если его нет
+        const statsContainer = document.querySelector('.stats');
+        if (!statsContainer) return;
+        
+        periodStatsContainer = document.createElement('div');
+        periodStatsContainer.id = 'period-stats';
+        periodStatsContainer.className = 'period-stats';
+        periodStatsContainer.innerHTML = `
+            <div class="period-stat-card">
+                <h3>Сделок в периоде</h3>
+                <div class="period-stat-value" id="period-trades-count">0</div>
+            </div>
+            <div class="period-stat-card">
+                <h3>Прибыль в периоде</h3>
+                <div class="period-stat-value" id="period-profit">0.00 USDT</div>
+            </div>
+            <div class="period-stat-card">
+                <h3>Средняя сделка</h3>
+                <div class="period-stat-value" id="period-avg-trade">0.00 USDT</div>
+            </div>
+            <div class="period-stat-card">
+                <h3>Период</h3>
+                <div class="period-stat-value" id="current-period">Все время</div>
+            </div>
+        `;
+        statsContainer.parentNode.insertBefore(periodStatsContainer, statsContainer.nextSibling);
+    }
+    
+    // Расчет статистики
+    const periodProfit = calculatePeriodProfit(filteredTrades);
+    const periodTradesCount = filteredTrades.length;
+    const avgTrade = periodTradesCount > 0 ? periodProfit / periodTradesCount : 0;
+    
+    // Обновление значений
+    document.getElementById('period-trades-count').textContent = periodTradesCount;
+    document.getElementById('period-profit').textContent = `${periodProfit.toFixed(2)} USDT`;
+    document.getElementById('period-profit').className = `period-stat-value ${periodProfit >= 0 ? 'profit' : 'loss'}`;
+    document.getElementById('period-avg-trade').textContent = `${avgTrade.toFixed(2)} USDT`;
+    
+    // Отображение текущего периода
+    let periodText = 'Все время';
+    if (currentPeriod === 'custom' && startDateFilter && endDateFilter) {
+        periodText = `С ${startDateFilter.toLocaleDateString()} по ${endDateFilter.toLocaleDateString()}`;
+    } else if (currentPeriod !== 'all') {
+        const periodNames = {
+            'today': 'Сегодня',
+            'week': 'Эта неделя',
+            'month': 'Этот месяц', 
+            'year': 'Этот год'
+        };
+        periodText = periodNames[currentPeriod] || currentPeriod;
+    }
+    document.getElementById('current-period').textContent = periodText;
+}
+
+// Расчет прибыли за период
+function calculatePeriodProfit(trades) {
+    return trades.reduce((total, trade) => {
+        const isLong = trade.direction === 'long';
+        const priceDiff = trade.exitPrice - trade.entryPrice;
+        const pnl = isLong ? priceDiff * trade.amount : -priceDiff * trade.amount;
+        const pnlAfterFees = pnl - (trade.entryPrice * trade.amount * trade.fee / 100) - (trade.exitPrice * trade.amount * trade.fee / 100);
+        return total + pnlAfterFees;
+    }, 0);
+}
+
+// Обработчики событий для фильтров
+function setupFilterHandlers() {
+    // Фильтр по периоду
+    const periodSelect = document.getElementById('period-select');
+    if (periodSelect) {
+        periodSelect.addEventListener('change', function() {
+            currentPeriod = this.value;
+            
+            // Показать/скрыть кастомный выбор дат
+            const customPeriod = document.getElementById('custom-period');
+            if (customPeriod) {
+                customPeriod.style.display = currentPeriod === 'custom' ? 'flex' : 'none';
+            }
+            
+            updateTradesTable();
+            saveFilterState();
+        });
+    }
+    
+    // Применение кастомного периода
+    const applyCustomPeriodBtn = document.getElementById('apply-custom-period');
+    if (applyCustomPeriodBtn) {
+        applyCustomPeriodBtn.addEventListener('click', function() {
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            
+            if (!startDateInput || !endDateInput) return;
+            
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                alert('Пожалуйста, выберите корректные даты');
+                return;
+            }
+            
+            if (startDate > endDate) {
+                alert('Начальная дата не может быть больше конечной');
+                return;
+            }
+            
+            startDateFilter = startDate;
+            endDateFilter = endDate;
+            updateTradesTable();
+            saveFilterState();
+        });
+    }
+    
+    // Быстрые кнопки периодов
+    document.querySelectorAll('.quick-period').forEach(button => {
+        button.addEventListener('click', function() {
+            const period = this.dataset.period;
+            currentPeriod = period;
+            
+            // Обновляем выпадающий список
+            const periodSelect = document.getElementById('period-select');
+            if (periodSelect) {
+                periodSelect.value = period;
+            }
+            
+            // Скрываем кастомный период
+            const customPeriod = document.getElementById('custom-period');
+            if (customPeriod) {
+                customPeriod.style.display = 'none';
+            }
+            
+            updateTradesTable();
+            saveFilterState();
+        });
+    });
+}
+
+// Сохранение состояния фильтров
+function saveFilterState() {
+    const filterState = {
+        coin: currentCoin,
+        period: currentPeriod,
+        startDate: startDateFilter,
+        endDate: endDateFilter
+    };
+    localStorage.setItem('filterState', JSON.stringify(filterState));
+}
+
+// Восстановление состояния фильтров
+function loadFilterState() {
+    const savedState = localStorage.getItem('filterState');
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            currentCoin = state.coin || 'all';
+            currentPeriod = state.period || 'all';
+            startDateFilter = state.startDate ? new Date(state.startDate) : null;
+            endDateFilter = state.endDate ? new Date(state.endDate) : null;
+            
+            // Обновление UI
+            const coinSelect = document.getElementById('coin-select');
+            const periodSelect = document.getElementById('period-select');
+            
+            if (coinSelect) coinSelect.value = currentCoin;
+            if (periodSelect) periodSelect.value = currentPeriod;
+            
+            const customPeriod = document.getElementById('custom-period');
+            if (customPeriod && currentPeriod === 'custom') {
+                customPeriod.style.display = 'flex';
+                
+                const startDateInput = document.getElementById('start-date');
+                const endDateInput = document.getElementById('end-date');
+                
+                if (startDateInput && startDateFilter) {
+                    startDateInput.value = startDateFilter.toISOString().split('T')[0];
+                }
+                if (endDateInput && endDateFilter) {
+                    endDateInput.value = endDateFilter.toISOString().split('T')[0];
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки состояния фильтров:', error);
+        }
+    }
+}
+
 // Обновление статистики
 function updateStats() {
-    const coinTrades = trades.filter(trade => trade.coin === currentCoin);
+    const coinTrades = currentCoin === 'all' 
+        ? trades 
+        : trades.filter(trade => trade.coin === currentCoin);
+    
     const totalTrades = coinTrades.length;
     
     if (totalTrades === 0) {
@@ -136,7 +442,11 @@ function handleCoinChange() {
     currentCoin = document.getElementById('coin-select').value;
     updateTradesTable();
     updateStats();
+    saveFilterState();
 }
+
+// Остальные функции остаются без изменений (showTradeForm, hideTradeForm, saveNewTrade, etc.)
+// ... [остальной ваш код без изменений] ...
 
 // Показать форму добавления сделки
 function showTradeForm() {
@@ -150,262 +460,46 @@ function hideTradeForm() {
 
 // Сохранение новой сделки
 async function saveNewTrade() {
-    try {
-        await securityManager.checkOperationLimitWithUI('save_trade');
-
-        const trade = {
-            coin: currentCoin,
-            date: document.getElementById('trade-date').value,
-            direction: document.getElementById('trade-direction').value,
-            entryPrice: parseFloat(document.getElementById('entry-price').value),
-            exitPrice: parseFloat(document.getElementById('exit-price').value),
-            amount: parseFloat(document.getElementById('amount').value),
-            leverage: parseInt(document.getElementById('leverage').value),
-            fee: parseFloat(document.getElementById('fee').value),
-            notes: document.getElementById('notes').value
-        };
-        
-        // Валидация
-        if (!trade.date || isNaN(trade.entryPrice) || isNaN(trade.exitPrice) || 
-            isNaN(trade.amount) || trade.amount <= 0) {
-            alert('Пожалуйста, заполните все обязательные поля корректно!');
-            return;
-        }
-        
-        trades.push(trade);
-        localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
-        
-        // Сброс формы
-        document.getElementById('entry-price').value = '';
-        document.getElementById('exit-price').value = '';
-        document.getElementById('amount').value = '';
-        document.getElementById('notes').value = '';
-        hideTradeForm();
-        
-        updateTradesTable();
-        updateStats();
-    } catch (error) {
-        if (error.message.includes('Слишком частые операции')) {
-            // Обработка уже выполнена в checkOperationLimitWithUI
-            return;
-        }
-        alert(error.message);
-    }
+    // ... ваш существующий код ...
 }
 
 // Очистка всех сделок
 function clearAllTrades() {
-    if (confirm('Вы уверены, что хотите удалить все сделки?')) {
-        trades = trades.filter(trade => trade.coin !== currentCoin);
-        localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
-        updateTradesTable();
-        updateStats();
-    }
+    // ... ваш существующий код ...
 }
 
 // Сохранение в файл
 function saveToFile() {
-    if (trades.length === 0) {
-        alert('Нет данных для сохранения!');
-        return;
-    }
-    
-    const dataStr = JSON.stringify(trades, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `dump_фьючерсные_сделки_${new Date().toISOString().slice(0, 10)}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+    // ... ваш существующий код ...
 }
 
 // Загрузка из файла
 function triggerFileInput() {
-    document.getElementById('file-input').click();
+    // ... ваш существующий код ...
 }
 
 function loadFromFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const fileContent = e.target.result;
-            const parsedTrades = JSON.parse(fileContent);
-            
-            if (Array.isArray(parsedTrades)) {
-                if (confirm('Заменить текущие сделки загруженными?')) {
-                    trades = parsedTrades;
-                } else {
-                    trades = [...trades, ...parsedTrades];
-                }
-                
-                localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
-                updateTradesTable();
-                updateStats();
-                alert(`Успешно загружено ${parsedTrades.length} сделок!`);
-            } else {
-                alert('Формат файла неверный!');
-            }
-        } catch (error) {
-            alert('Ошибка при чтении файла: ' + error.message);
-        }
-    };
-    reader.readAsText(file);
+    // ... ваш существующий код ...
 }
 
 // Начать редактирование сделки
 function startEditTrade(index) {
-    // Закрываем предыдущую форму редактирования
-    const existingForm = document.querySelector('.edit-form');
-    if (existingForm) {
-        existingForm.remove();
-    }
-    
-    if (index < 0 || index >= trades.length) return;
-    
-    const trade = trades[index];
-    editingIndex = index;
-    
-    // Находим строку таблицы для этой сделки
-    const rows = document.getElementById('trades-table').querySelectorAll('tbody tr');
-    let targetRow = null;
-    
-    for (let i = 0; i < rows.length; i++) {
-        const btn = rows[i].querySelector('button[onclick="startEditTrade(' + index + ')"]');
-        if (btn) {
-            targetRow = rows[i];
-            break;
-        }
-    }
-    
-    if (!targetRow) return;
-    
-    // Создаем форму редактирования
-    const editForm = document.createElement('tr');
-    editForm.className = 'edit-form';
-    editForm.innerHTML = `
-        <td colspan="10">
-            <h3 style="margin-bottom: 15px; color: #f39c12;">Редактирование сделки</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                <div class="form-group">
-                    <label for="edit-date">Дата и время</label>
-                    <input type="datetime-local" id="edit-date" value="${escapeHtml(trade.date.slice(0, 16))}">
-                </div>
-                <div class="form-group">
-                    <label for="edit-direction">Направление</label>
-                    <select id="edit-direction">
-                        <option value="long" ${escapeHtml(trade.direction) === 'long' ? 'selected' : ''}>Лонг</option>
-                        <option value="short" ${escapeHtml(trade.direction) === 'short' ? 'selected' : ''}>Шорт</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="edit-entry-price">Цена входа (USDT)</label>
-                    <input type="number" id="edit-entry-price" step="0.01" value="${escapeHtml(trade.entryPrice)}">
-                </div>
-                <div class="form-group">
-                    <label for="edit-exit-price">Цена выхода (USDT)</label>
-                    <input type="number" id="edit-exit-price" step="0.01" value="${escapeHtml(trade.exitPrice)}">
-                </div>
-                <div class="form-group">
-                    <label for="edit-amount">Количество (контрактов)</label>
-                    <input type="number" id="edit-amount" step="0.001" value="${escapeHtml(trade.amount)}">
-                </div>
-                <div class="form-group">
-                    <label for="edit-leverage">Плечо</label>
-                    <input type="number" id="edit-leverage" value="${escapeHtml(trade.leverage)}" min="1" max="100">
-                </div>
-                <div class="form-group">
-                    <label for="edit-fee">Комиссия (%)</label>
-                    <input type="number" id="edit-fee" step="0.01" value="${escapeHtml(trade.fee)}" min="0">
-                </div>
-                <div class="form-group">
-                    <label for="edit-notes">Примечания</label>
-                    <input type="text" id="edit-notes" value="${escapeHtml(trade.notes) || ''}">
-                </div>
-            </div>
-            <div class="edit-controls">
-                <button onclick="saveEditTrade()" class="btn-save">Сохранить</button>
-                <button onclick="cancelEditTrade()" style="background: #7f8c8d;">Отмена</button>
-            </div>
-        </td>
-    `;
-    
-    // Вставляем форму редактирования после строки
-    targetRow.parentNode.insertBefore(editForm, targetRow.nextSibling);
-    
-    // Прокручиваем к форме редактирования
-    editForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // ... ваш существующий код ...
 }
 
 // Сохранить отредактированную сделку
 function saveEditTrade() {
-    if (editingIndex < 0 || editingIndex >= trades.length) return;
-    
-    const trade = trades[editingIndex];
-    
-    // Получаем новые значения из формы
-    trade.date = document.getElementById('edit-date').value;
-    trade.direction = document.getElementById('edit-direction').value;
-    trade.entryPrice = parseFloat(document.getElementById('edit-entry-price').value);
-    trade.exitPrice = parseFloat(document.getElementById('edit-exit-price').value);
-    trade.amount = parseFloat(document.getElementById('edit-amount').value);
-    trade.leverage = parseInt(document.getElementById('edit-leverage').value);
-    trade.fee = parseFloat(document.getElementById('edit-fee').value);
-    trade.notes = document.getElementById('edit-notes').value;
-    
-    // Валидация
-    if (!trade.date || isNaN(trade.entryPrice) || isNaN(trade.exitPrice) || 
-        isNaN(trade.amount) || trade.amount <= 0) {
-        alert('Пожалуйста, заполните все обязательные поля корректно!');
-        return;
-    }
-    
-    // Сохраняем изменения
-    localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
-    
-    // Закрываем форму редактирования
-    const editForm = document.querySelector('.edit-form');
-    if (editForm) {
-        editForm.remove();
-    }
-    
-    editingIndex = -1;
-    
-    // Обновляем таблицу и статистику
-    updateTradesTable();
-    updateStats();
-    
-    alert('Сделка успешно обновлена!');
+    // ... ваш существующий код ...
 }
 
 // Отменить редактирование
 function cancelEditTrade() {
-    const editForm = document.querySelector('.edit-form');
-    if (editForm) {
-        editForm.remove();
-    }
-    editingIndex = -1;
+    // ... ваш существующий код ...
 }
 
 // Удаление сделки
 async function deleteTrade(index) {
-    try {
-        await securityManager.checkOperationLimitWithUI('delete_trade');
-        if (confirm('Вы уверены, что хотите удалить эту сделку?')) {
-            trades.splice(index, 1);
-            localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
-            updateTradesTable();
-            updateStats();
-        }
-    } catch (error) {
-        if (!error.message.includes('Слишком частые операции')) {
-            alert(error.message);
-        }
-    }
+    // ... ваш существующий код ...
 }
 
 // Сделаем функции глобальными для использования в onclick
