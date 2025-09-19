@@ -1,7 +1,14 @@
-# test-workflow.sh
-echo "🧪 Тестирование GitHub Actions workflow"
+#!/bin/bash
+echo "🧪 Тестирование системы версионирования"
 
-# Симулируем push в master
-echo "🔀 Проверка логики workflow..."
-echo "Будет выполняться при push в master"
-echo "Обновит версию, создаст тег и релиз"
+# Симулируем мерж в master
+echo "🔀 Симуляция мержа в master..."
+CURRENT_VERSION=$(node -e "console.log(require('./version.json').version)")
+echo "Текущая версия: v$CURRENT_VERSION"
+
+# Обновляем версию
+npm run version:patch --silent
+NEW_VERSION=$(node -e "console.log(require('./version.json').version)")
+
+echo "Новая версия: v$NEW_VERSION"
+echo "✅ Тест завершен успешно"
