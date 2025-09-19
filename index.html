@@ -11,15 +11,11 @@
                base-uri 'none';
                form-action 'self'">
     <title>Учет фьючерсных сделок</title>
+    <meta name="description" content="Отслеживайте ваши криптовалютные фьючерсные сделки с сохранением в файл">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Учет фьючерсных сделок</h1>
-            <p class="subtitle">Отслеживайте ваши криптовалютные фьючерсные сделки с сохранением в файл</p>
-        </header>
-        
         <div class="import-export">
             <h3>Работа с файлами</h3>
             <div class="file-actions">
@@ -122,6 +118,35 @@
         </div>
         
         <div class="table-container">
+            <div class="quick-filter">
+                <!-- Фильтры периода -->
+                <div class="controls">
+                    <div class="period-selector">
+                        <label for="period-select">Период:</label>
+                        <select id="period-select">
+                            <option value="all">Все время</option>
+                            <option value="today">Сегодня</option>
+                            <option value="week">Неделя</option>
+                            <option value="month">Месяц</option>
+                            <option value="year">Год</option>
+                            <option value="custom">Произвольный</option>
+                        </select>
+                    </div>
+                    
+                    <div class="custom-period" id="custom-period" style="display: none;">
+                        <input type="date" id="start-date" placeholder="Начальная дата">
+                        <input type="date" id="end-date" placeholder="Конечная дата">
+                        <button id="apply-custom-period">Применить</button>
+                    </div>
+                    
+                    <div class="quick-periods">
+                        <button class="quick-period" data-period="today">Сегодня</button>
+                        <button class="quick-period" data-period="week">Неделя</button>
+                        <button class="quick-period" data-period="month">Месяц</button>
+                        <button class="quick-period" data-period="year">Год</button>
+                    </div>
+                </div>
+            </div>
             <table id="trades-table">
                 <thead>
                     <tr>
@@ -153,5 +178,6 @@
     </div>
     <script lang="JavaScript" src="js/script.js"></script>
     <script lang="JavaScript" src="js/security.js"></script>
+    <script lang="JavaScript" src="js/filter.js"></script>
 </body>
 </html>
