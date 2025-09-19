@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Учет фьючерсных сделок</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Учет фьючерсных сделок</h1>
+            <p class="subtitle">Отслеживайте ваши криптовалютные фьючерсные сделки</p>
+        </header>
+        
+        <div class="controls">
+            <div class="coin-selector">
+                <label for="coin-select">Выберите криптовалюту:</label>
+                <select id="coin-select">
+                    <option value="BTC">Bitcoin (BTC)</option>
+                    <option value="ETH">Ethereum (ETH)</option>
+                    <option value="SOL">Solana (SOL)</option>
+                    <option value="XRP">Ripple (XRP)</option>
+                    <option value="ADA">Cardano (ADA)</option>
+                    <option value="DOT">Polkadot (DOT)</option>
+                    <option value="DOGE">Dogecoin (DOGE)</option>
+                    <option value="AVAX">Avalanche (AVAX)</option>
+                </select>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="add-trade-btn">Добавить сделку</button>
+                <button id="clear-all-btn">Очистить все</button>
+                <button id="export-btn">Экспорт в CSV</button>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Общая прибыль</h3>
+                <div class="stat-value" id="total-profit">0.00 USDT</div>
+            </div>
+            <div class="stat-card">
+                <h3>Количество сделок</h3>
+                <div class="stat-value" id="total-trades">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Успешных сделок</h3>
+                <div class="stat-value" id="success-rate">0%</div>
+            </div>
+            <div class="stat-card">
+                <h3>Средняя прибыль</h3>
+                <div class="stat-value" id="avg-profit">0.00 USDT</div>
+            </div>
+        </div>
+        
+        <div class="trade-form" id="trade-form" style="display: none;">
+            <h3 class="form-title">Добавление новой сделки</h3>
+            
+            <div class="form-group">
+                <label for="trade-date">Дата и время</label>
+                <input type="datetime-local" id="trade-date">
+            </div>
+            
+            <div class="form-group">
+                <label for="trade-direction">Направление</label>
+                <select id="trade-direction">
+                    <option value="long">Лонг</option>
+                    <option value="short">Шорт</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="entry-price">Цена входа (USDT)</label>
+                <input type="number" id="entry-price" step="0.01" placeholder="0.00">
+            </div>
+            
+            <div class="form-group">
+                <label for="exit-price">Цена выхода (USDT)</label>
+                <input type="number" id="exit-price" step="0.01" placeholder="0.00">
+            </div>
+            
+            <div class="form-group">
+                <label for="amount">Количество (контрактов)</label>
+                <input type="number" id="amount" step="0.001" placeholder="0.00">
+            </div>
+            
+            <div class="form-group">
+                <label for="leverage">Плечо</label>
+                <input type="number" id="leverage" value="10" min="1" max="100">
+            </div>
+            
+            <div class="form-group">
+                <label for="fee">Комиссия (%)</label>
+                <input type="number" id="fee" value="0.05" step="0.01" min="0">
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Примечания</label>
+                <input type="text" id="notes" placeholder="Комментарий к сделке">
+            </div>
+            
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <button id="save-trade-btn">Сохранить сделку</button>
+                <button id="cancel-trade-btn" style="background: #7f8c8d;">Отмена</button>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <table id="trades-table">
+                <thead>
+                    <tr>
+                        <th>Дата и время</th>
+                        <th>Направление</th>
+                        <th>Цена входа</th>
+                        <th>Цена выхода</th>
+                        <th>Кол-во</th>
+                        <th>Плечо</th>
+                        <th>P&L</th>
+                        <th>ROE%</th>
+                        <th>Примечания</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Данные будут добавляться через JavaScript -->
+                </tbody>
+            </table>
+        </div>
+        
+        <footer>
+            <p>Таблица для учета фьючерсных сделок с криптовалютой | Создано для удобного отслеживания торговой деятельности</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Элементы DOM
+            const coinSelect = document.getElementById('coin-select');
+            const addTradeBtn = document.getElementById('add-trade-btn');
+            const clearAllBtn = document.getElementById('clear-all-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const tradeForm = document.getElementById('trade-form');
+            const saveTradeBtn = document.getElementById('save-trade-btn');
+            const cancelTradeBtn = document.getElementById('cancel-trade-btn');
+            const tradesTable = document.getElementById('trades-table');
+            
+            // Статистические элементы
+            const totalProfitEl = document.getElementById('total-profit');
+            const totalTradesEl = document.getElementById('total-trades');
+            const successRateEl = document.getElementById('success-rate');
+            const avgProfitEl = document.getElementById('avg-profit');
+            
+            // Массив для хранения сделок
+            let trades = JSON.parse(localStorage.getItem('cryptoFuturesTrades')) || [];
+            let currentCoin = 'BTC';
+            
+            // Инициализация
+            function init() {
+                updateTradesTable();
+                updateStats();
+                
+                // Установка текущей даты и времени по умолчанию
+                const now = new Date();
+                const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                document.getElementById('trade-date').value = localDateTime;
+            }
+            
+            // Обновление таблицы сделок
+            function updateTradesTable() {
+                const tbody = tradesTable.querySelector('tbody');
+                tbody.innerHTML = '';
+                
+                const coinTrades = trades.filter(trade => trade.coin === currentCoin);
+                
+                coinTrades.forEach((trade, index) => {
+                    const row = document.createElement('tr');
+                    
+                    // Расчет PnL и ROE
+                    const isLong = trade.direction === 'long';
+                    const priceDiff = trade.exitPrice - trade.entryPrice;
+                    const pnl = isLong 
+                        ? priceDiff * trade.amount 
+                        : -priceDiff * trade.amount;
+                    const pnlAfterFees = pnl - (trade.entryPrice * trade.amount * trade.fee / 100) - (trade.exitPrice * trade.amount * trade.fee / 100);
+                    const margin = (trade.entryPrice * trade.amount) / trade.leverage;
+                    const roe = (pnlAfterFees / margin) * 100;
+                    
+                    row.innerHTML = `
+                        <td>${formatDateTime(trade.date)}</td>
+                        <td class="${trade.direction === 'long' ? 'profit' : 'loss'}">${trade.direction === 'long' ? 'Лонг' : 'Шорт'}</td>
+                        <td>${trade.entryPrice.toFixed(2)}</td>
+                        <td>${trade.exitPrice.toFixed(2)}</td>
+                        <td>${trade.amount}</td>
+                        <td>${trade.leverage}x</td>
+                        <td class="${pnlAfterFees >= 0 ? 'profit' : 'loss'}">${pnlAfterFees.toFixed(2)} USDT</td>
+                        <td class="${roe >= 0 ? 'profit' : 'loss'}">${roe.toFixed(2)}%</td>
+                        <td>${trade.notes || '-'}</td>
+                        <td>
+                            <button onclick="deleteTrade(${index})" style="background: #e74c3c; padding: 5px 10px;">Удалить</button>
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+            }
+            
+            // Обновление статистики
+            function updateStats() {
+                const coinTrades = trades.filter(trade => trade.coin === currentCoin);
+                const totalTrades = coinTrades.length;
+                
+                if (totalTrades === 0) {
+                    totalProfitEl.textContent = '0.00 USDT';
+                    totalTradesEl.textContent = '0';
+                    successRateEl.textContent = '0%';
+                    avgProfitEl.textContent = '0.00 USDT';
+                    return;
+                }
+                
+                // Расчет общей прибыли
+                let totalProfit = 0;
+                let profitableTrades = 0;
+                
+                coinTrades.forEach(trade => {
+                    const isLong = trade.direction === 'long';
+                    const priceDiff = trade.exitPrice - trade.entryPrice;
+                    const pnl = isLong 
+                        ? priceDiff * trade.amount 
+                        : -priceDiff * trade.amount;
+                    const pnlAfterFees = pnl - (trade.entryPrice * trade.amount * trade.fee / 100) - (trade.exitPrice * trade.amount * trade.fee / 100);
+                    
+                    totalProfit += pnlAfterFees;
+                    if (pnlAfterFees > 0) profitableTrades++;
+                });
+                
+                const successRate = (profitableTrades / totalTrades) * 100;
+                const avgProfit = totalProfit / totalTrades;
+                
+                totalProfitEl.textContent = `${totalProfit.toFixed(2)} USDT`;
+                totalProfitEl.className = `stat-value ${totalProfit >= 0 ? 'profit' : 'loss'}`;
+                totalTradesEl.textContent = totalTrades;
+                successRateEl.textContent = `${successRate.toFixed(1)}%`;
+                avgProfitEl.textContent = `${avgProfit.toFixed(2)} USDT`;
+                avgProfitEl.className = `stat-value ${avgProfit >= 0 ? 'profit' : 'loss'}`;
+            }
+            
+            // Форматирование даты и времени
+            function formatDateTime(dateTimeStr) {
+                const date = new Date(dateTimeStr);
+                return date.toLocaleString('ru-RU');
+            }
+            
+            // Показать форму добавления сделки
+            addTradeBtn.addEventListener('click', function() {
+                tradeForm.style.display = 'grid';
+            });
+            
+            // Скрыть форму добавления сделки
+            cancelTradeBtn.addEventListener('click', function() {
+                tradeForm.style.display = 'none';
+            });
+            
+            // Сохранение сделки
+            saveTradeBtn.addEventListener('click', function() {
+                const trade = {
+                    coin: currentCoin,
+                    date: document.getElementById('trade-date').value,
+                    direction: document.getElementById('trade-direction').value,
+                    entryPrice: parseFloat(document.getElementById('entry-price').value),
+                    exitPrice: parseFloat(document.getElementById('exit-price').value),
+                    amount: parseFloat(document.getElementById('amount').value),
+                    leverage: parseInt(document.getElementById('leverage').value),
+                    fee: parseFloat(document.getElementById('fee').value),
+                    notes: document.getElementById('notes').value
+                };
+                
+                // Валидация
+                if (!trade.date || isNaN(trade.entryPrice) || isNaN(trade.exitPrice) || 
+                    isNaN(trade.amount) || trade.amount <= 0) {
+                    alert('Пожалуйста, заполните все обязательные поля корректно!');
+                    return;
+                }
+                
+                trades.push(trade);
+                localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
+                
+                // Сброс формы
+                document.getElementById('entry-price').value = '';
+                document.getElementById('exit-price').value = '';
+                document.getElementById('amount').value = '';
+                document.getElementById('notes').value = '';
+                tradeForm.style.display = 'none';
+                
+                updateTradesTable();
+                updateStats();
+            });
+            
+            // Очистка всех сделок
+            clearAllBtn.addEventListener('click', function() {
+                if (confirm('Вы уверены, что хотите удалить все сделки?')) {
+                    trades = trades.filter(trade => trade.coin !== currentCoin);
+                    localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
+                    updateTradesTable();
+                    updateStats();
+                }
+            });
+            
+            // Экспорт в CSV
+            exportBtn.addEventListener('click', function() {
+                const coinTrades = trades.filter(trade => trade.coin === currentCoin);
+                if (coinTrades.length === 0) {
+                    alert('Нет данных для экспорта!');
+                    return;
+                }
+                
+                let csv = 'Дата,Направление,Цена входа,Цена выхода,Количество,Плечо,Комиссия,Примечания\n';
+                
+                coinTrades.forEach(trade => {
+                    csv += `"${formatDateTime(trade.date)}",${trade.direction === 'long' ? 'Лонг' : 'Шорт'},${trade.entryPrice},${trade.exitPrice},${trade.amount},${trade.leverage},${trade.fee},"${trade.notes || ''}"\n`;
+                });
+                
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `фьючерсные_сделки_${currentCoin}_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+            
+            // Удаление сделки
+            window.deleteTrade = function(index) {
+                // Находим глобальный индекс сделки
+                const coinTrades = trades.filter(trade => trade.coin === currentCoin);
+                const globalIndex = trades.indexOf(coinTrades[index]);
+                
+                if (globalIndex !== -1) {
+                    trades.splice(globalIndex, 1);
+                    localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
+                    updateTradesTable();
+                    updateStats();
+                }
+            };
+            
+            // Смена криптовалюты
+            coinSelect.addEventListener('change', function() {
+                currentCoin = coinSelect.value;
+                updateTradesTable();
+                updateStats();
+            });
+            
+            // Инициализация при загрузке
+            init();
+        });
+    </script>
+</body>
+</html>
