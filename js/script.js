@@ -54,7 +54,7 @@ function updateTradesTable() {
         
         row.innerHTML = `
             <td>${formatDateTime(trade.date)}</td>
-            <td>${trade.direction === 'long' ? 'Лонг' : 'Шорт'}</td>
+            <td class="${trade.direction === 'long' ? 'profit' : 'loss'}">${trade.direction === 'long' ? 'Лонг' : 'Шорт'}</td>
             <td>${trade.entryPrice.toFixed(2)}</td>
             <td>${trade.exitPrice.toFixed(2)}</td>
             <td>${trade.amount}</td>
@@ -193,7 +193,7 @@ function saveToFile() {
     const dataStr = JSON.stringify(trades, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     
-    const exportFileDefaultName = `фьючерсные_сделки_${new Date().toISOString().slice(0, 10)}.json`;
+    const exportFileDefaultName = `dump_фьючерсные_сделки_${new Date().toISOString().slice(0, 10)}.json`;
     
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
