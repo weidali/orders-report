@@ -1,0 +1,38 @@
+{
+  "name": "orders-reports",
+  "version": "0.1.1",
+  "description": "Трекер фьючерсных сделок с криптовалютой",
+  "features": [
+    "Учет сделок",
+    "Статистика PnL",
+    "Импорт/экспорт данных",
+    "Система версионирования"
+  ],
+  "type": "module",
+  "scripts": {
+    "version:patch": "node js/version.js patch",
+    "version:minor": "node js/version.js minor",
+    "version:major": "node js/version.js major",
+    "version:show": "node js/version.js show",
+    "version:help": "node js/version.js help",
+    "version:set": "node js/version.js set",
+    "build": "npm run version:patch && echo '✅ Сборка завершена'",
+    "help": "npm run version:help"
+  },
+  "keywords": [
+    "trading",
+    "crypto",
+    "tracker"
+  ],
+  "author": "VitalyV",
+  "license": "MIT",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weidali/orders-report.git"
+  },
+  "bugs": {
+    "url": "https://github.com/weidali/orders-report/issues"
+  },
+  "homepage": "https://github.com/weidali/orders-report#readme"
+}
