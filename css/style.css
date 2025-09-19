@@ -52,6 +52,7 @@ h1 {
     gap: 10px;
 }
 
+/* Базовые стили для кнопок */
 select, input, button {
     padding: 10px 15px;
     border: none;
@@ -73,24 +74,59 @@ button:hover {
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 
+/* Стили для кнопок действий в таблице */
 .btn-edit, .btn-delete {
-    padding: 5px 10px;
+    padding: 2px 5px;
+    font-size: 0.7rem;
+    min-width: 80px; /* Фиксированная ширина */
+    text-align: center;
+    margin: 2px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
+/* Контейнер для кнопок действий */
+.action-buttons-container {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Стили для конкретных кнопок */
 .btn-edit {
     background: #f39c12;
+    border: 1px solid #e67e22;
 }
 
 .btn-edit:hover {
     background: #e67e22;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .btn-delete {
     background: #e74c3c;
+    border: 1px solid #c0392b;
 }
 
 .btn-delete:hover {
     background: #c0392b;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    .btn-edit, .btn-delete {
+        min-width: 70px;
+        font-size: 0.8rem;
+    }
+    
+    .action-buttons-container {
+        flex-direction: column;
+        gap: 3px;
+    }
 }
 
 .btn-save {
@@ -121,7 +157,7 @@ button:hover {
 }
 
 .stat-value {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: #3498db;
     margin-top: 10px;
@@ -188,7 +224,7 @@ tr:hover {
     text-align: center;
     margin-bottom: 10px;
     color: #3498db;
-    font-size: 1.2rem;
+    font-size: 1.0rem;
 }
 
 footer {
@@ -196,7 +232,7 @@ footer {
     margin-top: 30px;
     padding: 20px;
     color: #a0e7ff;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .footer-description {
@@ -238,4 +274,27 @@ footer {
     .action-buttons, .file-actions {
         flex-direction: column;
     }
+}
+
+/* Стили для блокировки кнопок */
+button:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+button:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Анимация для обратного отсчета */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.cooldown-pulse {
+    animation: pulse 1s infinite;
 }

@@ -63,8 +63,8 @@ function updateTradesTable() {
             <td class="${roe >= 0 ? 'profit' : 'loss'}">${roe.toFixed(2)}%</td>
             <td>${trade.notes || '-'}</td>
             <td>
-                <button onclick="startEditTrade(${globalIndex})" class="btn-edit" style="padding: 5px 10px;">Редакт.</button>
-                <button onclick="deleteTrade(${globalIndex})" class="btn-delete" style="padding: 5px 10px;">Удалить</button>
+                <button onclick="startEditTrade(${globalIndex})" class="btn-edit">✏️ Ред.</button>
+                <button onclick="deleteTrade(${globalIndex})" class="btn-delete">🗑️ Удалить</button>
             </td>
         `;
         
@@ -115,6 +115,16 @@ function updateStats() {
     avgProfitEl.className = `stat-value ${avgProfit >= 0 ? 'profit' : 'loss'}`;
 }
 
+// Экранирование HTML
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // Форматирование даты и времени
 function formatDateTime(dateTimeStr) {
     const date = new Date(dateTimeStr);
@@ -139,38 +149,48 @@ function hideTradeForm() {
 }
 
 // Сохранение новой сделки
-function saveNewTrade() {
-    const trade = {
-        coin: currentCoin,
-        date: document.getElementById('trade-date').value,
-        direction: document.getElementById('trade-direction').value,
-        entryPrice: parseFloat(document.getElementById('entry-price').value),
-        exitPrice: parseFloat(document.getElementById('exit-price').value),
-        amount: parseFloat(document.getElementById('amount').value),
-        leverage: parseInt(document.getElementById('leverage').value),
-        fee: parseFloat(document.getElementById('fee').value),
-        notes: document.getElementById('notes').value
-    };
-    
-    // Валидация
-    if (!trade.date || isNaN(trade.entryPrice) || isNaN(trade.exitPrice) || 
-        isNaN(trade.amount) || trade.amount <= 0) {
-        alert('Пожалуйста, заполните все обязательные поля корректно!');
-        return;
+async function saveNewTrade() {
+    try {
+        await securityManager.checkOperationLimitWithUI('save_trade');
+
+        const trade = {
+            coin: currentCoin,
+            date: document.getElementById('trade-date').value,
+            direction: document.getElementById('trade-direction').value,
+            entryPrice: parseFloat(document.getElementById('entry-price').value),
+            exitPrice: parseFloat(document.getElementById('exit-price').value),
+            amount: parseFloat(document.getElementById('amount').value),
+            leverage: parseInt(document.getElementById('leverage').value),
+            fee: parseFloat(document.getElementById('fee').value),
+            notes: document.getElementById('notes').value
+        };
+        
+        // Валидация
+        if (!trade.date || isNaN(trade.entryPrice) || isNaN(trade.exitPrice) || 
+            isNaN(trade.amount) || trade.amount <= 0) {
+            alert('Пожалуйста, заполните все обязательные поля корректно!');
+            return;
+        }
+        
+        trades.push(trade);
+        localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
+        
+        // Сброс формы
+        document.getElementById('entry-price').value = '';
+        document.getElementById('exit-price').value = '';
+        document.getElementById('amount').value = '';
+        document.getElementById('notes').value = '';
+        hideTradeForm();
+        
+        updateTradesTable();
+        updateStats();
+    } catch (error) {
+        if (error.message.includes('Слишком частые операции')) {
+            // Обработка уже выполнена в checkOperationLimitWithUI
+            return;
+        }
+        alert(error.message);
     }
-    
-    trades.push(trade);
-    localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
-    
-    // Сброс формы
-    document.getElementById('entry-price').value = '';
-    document.getElementById('exit-price').value = '';
-    document.getElementById('amount').value = '';
-    document.getElementById('notes').value = '';
-    hideTradeForm();
-    
-    updateTradesTable();
-    updateStats();
 }
 
 // Очистка всех сделок
@@ -273,38 +293,38 @@ function startEditTrade(index) {
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                 <div class="form-group">
                     <label for="edit-date">Дата и время</label>
-                    <input type="datetime-local" id="edit-date" value="${trade.date.slice(0, 16)}">
+                    <input type="datetime-local" id="edit-date" value="${escapeHtml(trade.date.slice(0, 16))}">
                 </div>
                 <div class="form-group">
                     <label for="edit-direction">Направление</label>
                     <select id="edit-direction">
-                        <option value="long" ${trade.direction === 'long' ? 'selected' : ''}>Лонг</option>
-                        <option value="short" ${trade.direction === 'short' ? 'selected' : ''}>Шорт</option>
+                        <option value="long" ${escapeHtml(trade.direction) === 'long' ? 'selected' : ''}>Лонг</option>
+                        <option value="short" ${escapeHtml(trade.direction) === 'short' ? 'selected' : ''}>Шорт</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="edit-entry-price">Цена входа (USDT)</label>
-                    <input type="number" id="edit-entry-price" step="0.01" value="${trade.entryPrice}">
+                    <input type="number" id="edit-entry-price" step="0.01" value="${escapeHtml(trade.entryPrice)}">
                 </div>
                 <div class="form-group">
                     <label for="edit-exit-price">Цена выхода (USDT)</label>
-                    <input type="number" id="edit-exit-price" step="0.01" value="${trade.exitPrice}">
+                    <input type="number" id="edit-exit-price" step="0.01" value="${escapeHtml(trade.exitPrice)}">
                 </div>
                 <div class="form-group">
                     <label for="edit-amount">Количество (контрактов)</label>
-                    <input type="number" id="edit-amount" step="0.001" value="${trade.amount}">
+                    <input type="number" id="edit-amount" step="0.001" value="${escapeHtml(trade.amount)}">
                 </div>
                 <div class="form-group">
                     <label for="edit-leverage">Плечо</label>
-                    <input type="number" id="edit-leverage" value="${trade.leverage}" min="1" max="100">
+                    <input type="number" id="edit-leverage" value="${escapeHtml(trade.leverage)}" min="1" max="100">
                 </div>
                 <div class="form-group">
                     <label for="edit-fee">Комиссия (%)</label>
-                    <input type="number" id="edit-fee" step="0.01" value="${trade.fee}" min="0">
+                    <input type="number" id="edit-fee" step="0.01" value="${escapeHtml(trade.fee)}" min="0">
                 </div>
                 <div class="form-group">
                     <label for="edit-notes">Примечания</label>
-                    <input type="text" id="edit-notes" value="${trade.notes || ''}">
+                    <input type="text" id="edit-notes" value="${escapeHtml(trade.notes) || ''}">
                 </div>
             </div>
             <div class="edit-controls">
@@ -372,12 +392,19 @@ function cancelEditTrade() {
 }
 
 // Удаление сделки
-function deleteTrade(index) {
-    if (confirm('Вы уверены, что хотите удалить эту сделку?')) {
-        trades.splice(index, 1);
-        localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
-        updateTradesTable();
-        updateStats();
+async function deleteTrade(index) {
+    try {
+        await securityManager.checkOperationLimitWithUI('delete_trade');
+        if (confirm('Вы уверены, что хотите удалить эту сделку?')) {
+            trades.splice(index, 1);
+            localStorage.setItem('cryptoFuturesTrades', JSON.stringify(trades));
+            updateTradesTable();
+            updateStats();
+        }
+    } catch (error) {
+        if (!error.message.includes('Слишком частые операции')) {
+            alert(error.message);
+        }
     }
 }
 
