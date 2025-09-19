@@ -28,9 +28,19 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
+    
+    # Шаг 3: Создаем минимальный package-lock.json если его нет
+    - name: 📦 Create package-lock.json if missing
+      run: |
+        if [ ! -f package-lock.json ]; then
+          echo "Создаем package-lock.json..."
+          npm install --package-lock-only --no-audit --no-fund
+          echo "✅ package-lock.json создан"
+        else
+          echo "✅ package-lock.json уже существует"
+        fi
 
-    # Шаг 3: Получаем текущую версию
+    # Шаг 4: Получаем текущую версию
     - name: 📋 Get current version
       id: current_version
       run: |
@@ -38,7 +48,7 @@ jobs:
         echo "Текущая версия: $CURRENT_VERSION"
         echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
 
-    # Шаг 4: Обновляем версию (patch)
+    # Шаг 5: Обновляем версию (patch)
     - name: 🔄 Update version
       run: |
         npm run version:patch
@@ -46,7 +56,7 @@ jobs:
         echo "Новая версия: $NEW_VERSION"
         echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-    # Шаг 5: Коммитим обновленную версию
+    # Шаг 6: Коммитим обновленную версию
     - name: 💾 Commit version update
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
